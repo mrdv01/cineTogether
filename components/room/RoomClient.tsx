@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRoom } from '@/hooks/useRoom';
 import { VideoPlayer } from '@/components/room/VideoPlayer';
 import { ChatPanel } from '@/components/room/ChatPanel';
+import { VoiceChat } from '@/components/room/VoiceChat';
 import { WaitingScreen } from '@/components/room/WaitingScreen';
 import { EndScreen } from '@/components/room/EndScreen';
 import { ParticipantBar } from '@/components/room/ParticipantBar';
@@ -19,6 +20,7 @@ interface RoomClientProps {
 
 export function RoomClient({ roomId, token, backendUrl }: RoomClientProps) {
   const {
+    socket,
     role,
     hostName,
     guestName,
@@ -218,8 +220,18 @@ export function RoomClient({ roomId, token, backendUrl }: RoomClientProps) {
 
           {/* Right: Chat sidebar */}
           <div
-            className="min-h-0 min-w-0 flex-1 overflow-hidden border-t border-white/[0.06] lg:h-full lg:w-80 lg:flex-none lg:border-t-0 lg:border-l"
+            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-white/[0.06] lg:h-full lg:w-80 lg:flex-none lg:border-t-0 lg:border-l"
           >
+            <div className="shrink-0 p-2">
+              <VoiceChat
+                socket={socket}
+                roomId={roomId}
+                role={role}
+                connectionStatus={connectionStatus}
+                partnerName={role === 'host' ? guestName : hostName}
+              />
+            </div>
+            <div className="min-h-0 flex-1">
             <ChatPanel
               messages={messages}
               role={role}
@@ -228,6 +240,7 @@ export function RoomClient({ roomId, token, backendUrl }: RoomClientProps) {
               onSendMessage={sendMessage}
               onSendReaction={sendReaction}
             />
+            </div>
           </div>
       </div>
     </>
