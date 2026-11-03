@@ -57,6 +57,7 @@ export function VideoPlayer({
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSeekingRef = useRef(false);
   const isSyncing = useRef(false); // prevent event loops
+  const guestShouldPlay = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -67,10 +68,38 @@ export function VideoPlayer({
   const [showControls, setShowControls] = useState(true);
   const [showSyncMsg, setShowSyncMsg] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [needsPlaybackTap, setNeedsPlaybackTap] = useState(false);
 
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isHost = role === 'host';
+
+  const playGuestVideo = useCallback((video: HTMLVideoElement) => {
+    // Socket events are not user gestures: mobile browsers may reject play().
+    void video.play().then(() => {
+      setNeedsPlaybackTap(false);
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        setNeedsPlaybackTap(true);
+      } else if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        console.error('[Video] Guest playback failed:', error);
+      }
+    });
+  }, []);
+
+  function handleEnableSound() {
+    const video = videoRef.current;
+    if (!video) return;
+    // Must run directly in the tap handler, not after a socket event or await.
+    video.muted = false;
+    if (video.volume === 0) video.volume = 1;
+    setMuted(false);
+    setVolume(video.volume);
+    setSoundEnabled(true);
+    if (guestShouldPlay.current) playGuestVideo(video);
+    else setNeedsPlaybackTap(false);
+  }
 
   // ─── Initial sync from room state ─────────────────────────────────
   useEffect(() => {
@@ -85,8 +114,9 @@ export function VideoPlayer({
 
     video.currentTime = Math.max(0, targetTime);
     if (roomState.isPlaying && !isHost) {
-      // Guest auto-plays when host is playing
-      video.play().catch(() => {});
+      // Guest auto-plays when allowed; otherwise show a tap-to-enable action.
+      guestShouldPlay.current = true;
+      playGuestVideo(video);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
@@ -101,8 +131,8 @@ export function VideoPlayer({
       isSyncing.current = true;
       const latency = (Date.now() - serverTime) / 1000 / 2;
       video.currentTime = ct + latency;
-      video.play().catch(() => {});
-      setIsPlaying(true);
+      guestShouldPlay.current = true;
+      playGuestVideo(video);
       flashSyncMsg('▶️ Play sync');
       setTimeout(() => { isSyncing.current = false; }, 500);
     });
@@ -111,6 +141,7 @@ export function VideoPlayer({
       const video = videoRef.current;
       if (!video) return;
       isSyncing.current = true;
+      guestShouldPlay.current = false;
       video.pause();
       video.currentTime = ct;
       setIsPlaying(false);
@@ -148,16 +179,16 @@ export function VideoPlayer({
       let targetTime = ct;
       if (playing) targetTime += (Date.now() - serverTime) / 1000;
       video.currentTime = Math.max(0, targetTime);
+      guestShouldPlay.current = playing;
       if (playing) {
-        video.play().catch(() => {});
-        setIsPlaying(true);
+        playGuestVideo(video);
       } else {
         video.pause();
         setIsPlaying(false);
       }
       setTimeout(() => { isSyncing.current = false; }, 500);
     });
-  }, [isHost, onSyncPlay, onSyncPause, onSyncSeek, onSyncHeartbeat, onSyncState]);
+  }, [isHost, onSyncPlay, onSyncPause, onSyncSeek, onSyncHeartbeat, onSyncState, playGuestVideo]);
 
   // ─── Host heartbeat ────────────────────────────────────────────────
   useEffect(() => {
@@ -247,13 +278,18 @@ export function VideoPlayer({
     setVolume(val);
     if (videoRef.current) {
       videoRef.current.volume = val;
+      videoRef.current.muted = val === 0;
       setMuted(val === 0);
     }
   }
 
   function handleToggleMute() {
     if (!videoRef.current) return;
-    const newMuted = !muted;
+    const newMuted = !videoRef.current.muted;
+    if (!newMuted && !isHost) {
+      handleEnableSound();
+      return;
+    }
     setMuted(newMuted);
     videoRef.current.muted = newMuted;
   }
@@ -309,6 +345,14 @@ export function VideoPlayer({
         onWaiting={handleWaiting}
         onCanPlay={handleCanPlay}
         onEnded={handleEnded}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onVolumeChange={() => {
+          const video = videoRef.current;
+          if (!video) return;
+          setMuted(video.muted);
+          setVolume(video.volume);
+        }}
         playsInline
         preload="metadata"
         onClick={handleTogglePlay}
@@ -346,6 +390,19 @@ export function VideoPlayer({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Local audio permission is independent of the host's playback controls. */}
+      {!isHost && (!soundEnabled || needsPlaybackTap) && (
+        <div className="absolute inset-x-3 top-12 z-20 flex justify-center pointer-events-none">
+          <button
+            type="button"
+            onClick={handleEnableSound}
+            className="min-h-11 max-w-full rounded-xl border border-purple-400/50 bg-purple-950/95 px-4 py-3 text-sm font-medium text-white shadow-lg pointer-events-auto touch-manipulation"
+          >
+            {needsPlaybackTap ? 'Tap to enable playback & sound' : '🔊 Enable sound on this device'}
+          </button>
+        </div>
+      )}
 
       {/* Guest indicator */}
       {!isHost && (
