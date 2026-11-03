@@ -196,6 +196,55 @@ function setup(t, role = 'host') {
   };
 }
 
+test('temporary ICE disconnection preserves the call and recovers', async t => {
+  const f = setup(t);
+  const { track, pc } = await f.join();
+  pc.connectionState = 'connected';
+  pc.iceConnectionState = 'connected';
+  pc.onconnectionstatechange();
+  await f.flush();
+  assert.equal(f.value.state, 'connected');
+  pc.iceConnectionState = 'disconnected';
+  pc.oniceconnectionstatechange();
+  pc.oniceconnectionstatechange();
+  await f.flush();
+  assert.equal(f.value.state, 'reconnecting');
+  assert.equal(track.stopped, 0);
+  assert.equal(pc.closed, 0);
+  assert.equal([...f.timers.values()].filter(timer => timer.delay === 12000).length, 1);
+  pc.iceConnectionState = 'connected';
+  pc.oniceconnectionstatechange();
+  await f.flush();
+  assert.equal(f.value.state, 'connected');
+  assert.equal(f.timers.size, 0);
+});
+
+test('persistent ICE disconnection times out and stops microphone', async t => {
+  const f = setup(t);
+  const { track, pc } = await f.join();
+  pc.iceConnectionState = 'disconnected';
+  pc.oniceconnectionstatechange();
+  const timer = [...f.timers.values()].find(timer => timer.delay === 12000);
+  assert.ok(timer);
+  timer.callback();
+  await f.flush();
+  assert.equal(f.value.state, 'error');
+  assert.ok(track.stopped > 0);
+  assert.equal(pc.closed, 1);
+  assert.match(f.value.error, /TURN/);
+});
+
+test('failed ICE stops the call without waiting for recovery', async t => {
+  const f = setup(t);
+  const { track, pc } = await f.join();
+  pc.iceConnectionState = 'failed';
+  pc.oniceconnectionstatechange();
+  await f.flush();
+  assert.equal(f.value.state, 'error');
+  assert.ok(track.stopped > 0);
+  assert.equal(pc.closed, 1);
+});
+
 test('opt-in: mounting and unsolicited signaling never capture; join captures audio once', async t => {
   const f = setup(t);
   await f.flush();

@@ -15,6 +15,7 @@ export function VoiceChat({ partnerName, ...options }: VoiceChatProps) {
     joining: 'Joining voice chat…',
     waiting: `Waiting for ${partnerName || 'your partner'} to join voice…`,
     connecting: 'Connecting private audio…',
+    reconnecting: 'Network interrupted. Trying to recover voice…',
     connected: `Voice connected with ${partnerName || 'your partner'}.${muted ? ' Your microphone is muted.' : ''}`,
     error: 'Voice chat stopped. You can join again to retry.',
   }[state];

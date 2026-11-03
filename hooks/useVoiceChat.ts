@@ -11,7 +11,7 @@ export interface VoiceChatOptions {
   connectionStatus: string;
 }
 
-type VoiceState = 'idle' | 'requesting' | 'joining' | 'waiting' | 'connecting' | 'connected' | 'error';
+type VoiceState = 'idle' | 'requesting' | 'joining' | 'waiting' | 'connecting' | 'reconnecting' | 'connected' | 'error';
 type Description = { type: 'offer' | 'answer'; sdp: string };
 type Signal = { peerId: string; description?: Description; candidate?: RTCIceCandidateInit };
 type JoinReply = { ok: true; selfId: string; peerId: string | null } | { ok: false; error: string };
@@ -30,6 +30,7 @@ type Attempt = {
   candidates: RTCIceCandidateInit[];
   queue: Promise<void>;
   timer: ReturnType<typeof setTimeout> | null;
+  disconnectTimer: ReturnType<typeof setTimeout> | null;
 };
 
 function iceServers(): RTCIceServer[] {
@@ -84,6 +85,7 @@ export function useVoiceChat({ socket, roomId, role, connectionStatus }: VoiceCh
       generation.current += 1;
       if (call) {
         if (call.timer) clearTimeout(call.timer);
+        if (call.disconnectTimer) clearTimeout(call.disconnectTimer);
         if (notify && call.emitted && socket?.connected) socket.emit('voice:leave', { roomId });
         if (call.pc) {
           call.pc.onicecandidate = null;
@@ -114,7 +116,7 @@ export function useVoiceChat({ socket, roomId, role, connectionStatus }: VoiceCh
 
     function negotiateTimeout(call: Attempt) {
       if (call.timer) clearTimeout(call.timer);
-      call.timer = setTimeout(() => fail(call, 'Voice connection timed out. Join again to retry.'), 25000);
+      call.timer = setTimeout(() => fail(call, 'Voice connection timed out. Different networks may require a TURN relay. Check TURN configuration, then join again.'), 25000);
     }
 
     function peer(call: Attempt, peerId: string): RTCPeerConnection | null {
@@ -140,12 +142,22 @@ export function useVoiceChat({ socket, roomId, role, connectionStatus }: VoiceCh
       };
       const checkConnection = () => {
         if (!live(call)) return;
-        if (['failed', 'disconnected'].includes(pc.iceConnectionState) ||
-            ['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
-          fail(call, 'Voice connection lost. Join again to retry.');
+        if (pc.iceConnectionState === 'failed' || ['failed', 'closed'].includes(pc.connectionState)) {
+          fail(call, 'Voice connection failed. Different networks may require a TURN relay. Check TURN configuration, then join again.');
+        } else if (pc.iceConnectionState === 'disconnected' || pc.connectionState === 'disconnected') {
+          // ICE disconnected can be temporary (Wi-Fi/mobile handover or packet loss).
+          // Keep the peer and mic alive briefly instead of tearing down both calls.
+          setState('reconnecting');
+          if (!call.disconnectTimer) {
+            call.disconnectTimer = setTimeout(() => {
+              fail(call, 'Voice connection did not recover. Check your network and TURN configuration, then join again.');
+            }, 12000);
+          }
         } else if (pc.connectionState === 'connected' || pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
           if (call.timer) clearTimeout(call.timer);
+          if (call.disconnectTimer) clearTimeout(call.disconnectTimer);
           call.timer = null;
+          call.disconnectTimer = null;
           setState('connected');
         }
       };
@@ -207,7 +219,7 @@ export function useVoiceChat({ socket, roomId, role, connectionStatus }: VoiceCh
       const call: Attempt = {
         generation: ++generation.current, stream: null, remote: null, pc: null,
         peerId: null, selfId: null, joined: false, emitted: false, offered: false,
-        pendingPeer: null, pendingSignals: [], candidates: [], queue: Promise.resolve(), timer: null,
+        pendingPeer: null, pendingSignals: [], candidates: [], queue: Promise.resolve(), timer: null, disconnectTimer: null,
       };
       attempt = call;
       setError(null);
