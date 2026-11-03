@@ -1,69 +1,124 @@
-import Image from "next/image";
+import type { Metadata } from 'next';
+import { FloatingHearts } from '@/components/landing/FloatingHearts';
+import { StarField } from '@/components/landing/StarField';
+import { CreateRoomButton } from '@/components/landing/CreateRoomButton';
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: 'CineTogether — Your Private Cinema for Two',
+};
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const HOST_NAME = process.env.NEXT_PUBLIC_HOST_NAME || 'You';
+const GUEST_NAME = process.env.NEXT_PUBLIC_GUEST_NAME || 'Your Person';
+
+export default function LandingPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="relative min-h-dvh flex flex-col items-center justify-center overflow-x-clip px-4 py-8 sm:px-6 sm:py-16">
+      {/* Backgrounds */}
+      <StarField />
+      <FloatingHearts />
+
+      {/* Deep gradient radial background */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 70%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(236, 72, 153, 0.1) 0%, transparent 70%)',
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Main content */}
+      <div className="relative z-10 flex min-w-0 w-full max-w-lg flex-col items-center gap-6 text-center sm:gap-8">
+
+        {/* Badge */}
+        <div
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium"
+          style={{
+            background: 'rgba(168, 85, 247, 0.12)',
+            border: '1px solid rgba(168, 85, 247, 0.3)',
+            color: '#c4b5fd',
+          }}
+        >
+          <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+          Private Cinema for Two
+        </div>
+
+        {/* Logo */}
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl pulse-glow"
+            style={{
+              background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.2))',
+              border: '1px solid rgba(168, 85, 247, 0.4)',
+            }}
+          >
+            🎬
+          </div>
+          <h1
+            className="text-4xl sm:text-5xl md:text-6xl font-bold gradient-text max-w-full break-words"
+            style={{ fontFamily: "'Playfair Display', serif" }}
+          >
+            CineTogether
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+        </div>
+
+        {/* Personalized greeting */}
+        <div className="w-full space-y-3 break-words">
+          <p className="text-xl sm:text-2xl md:text-3xl font-light" style={{ color: '#f1f0ff' }}>
+            Welcome back,{' '}
+            <span className="gradient-text font-semibold" style={{ fontFamily: "'Playfair Display', serif" }}>
+              {HOST_NAME}
+            </span>{' '}
+            🌙
+          </p>
+          <p className="text-base md:text-lg leading-relaxed" style={{ color: '#9ca3af' }}>
+            Ready to watch something beautiful with{' '}
+            <span style={{ color: '#f472b6' }}>{GUEST_NAME}</span>?
+            <br />
+            Create a private room and share the magic.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Feature pills */}
+        <div className="flex flex-wrap justify-center gap-2">
+          {[
+            { icon: '🔄', label: 'Perfect Sync' },
+            { icon: '📱', label: 'Any Device' },
+            { icon: '💬', label: 'Live Chat' },
+            { icon: '🔒', label: 'Private Room' },
+          ].map(({ icon, label }) => (
+            <span
+              key={label}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: '#c4b5fd',
+              }}
+            >
+              {icon} {label}
+            </span>
+          ))}
         </div>
-      </main>
-    </div>
+
+        {/* CTA */}
+        <CreateRoomButton backendUrl={BACKEND_URL} />
+
+        {/* Footer note */}
+        <p className="text-xs" style={{ color: '#6b7280' }}>
+          No app download needed. Works on any browser. ✨
+        </p>
+      </div>
+
+      {/* Decorative bottom gradient */}
+      <div
+        className="fixed bottom-0 left-0 right-0 h-32 pointer-events-none z-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(7,7,26,0.8), transparent)',
+        }}
+        aria-hidden="true"
+      />
+    </main>
   );
 }

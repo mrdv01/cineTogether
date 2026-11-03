@@ -44,6 +44,7 @@ export interface RoomJoinedEvent {
   hostName: string;
   guestName: string;
   partnerConnected: boolean;
+  guestToken?: string;
   roomState: PlaybackState;
 }
 
